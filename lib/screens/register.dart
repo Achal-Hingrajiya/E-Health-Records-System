@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:opd_app/constants.dart';
 import 'package:opd_app/screens/login.dart';
-import 'package:opd_app/screens/patient_details.dart';
+import 'package:opd_app/screens/verify_phone.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -11,6 +14,27 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  Future<bool> register(String mobileNo, String name) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$url/register"),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({"mobile": "$mobileNo", "name": "$name"}),
+      );
+      final jsonData = jsonDecode(response.body);
+
+      print(jsonData);
+
+      return response.statusCode == 200;
+    } catch (err) {
+      print("Error occurred: $err");
+      return false;
+    }
+  }
+
+  final mobileController = TextEditingController();
+  final nameController = TextEditingController();
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -53,6 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 height: 40,
                 child: TextFormField(
                   maxLines: 1,
+                  controller: nameController,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.only(left: 15),
                     hintText: "Enter name",
@@ -73,6 +98,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 height: 40,
                 child: TextFormField(
                   maxLines: 1,
+                  controller: mobileController,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.only(left: 15),
                     hintText: "Enter mobile no.",
@@ -93,12 +119,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const PatientDetailsScreen(),
-                          ),
-                        );
+                      onPressed: () async {
+                        final String name = nameController.text;
+                        final String mobileNo = mobileController.text;
+
+                        final bool status = await register(mobileNo, name);
+                        // print(status);
+
+                        if (status) {
+                          print("Navigating to details");
+
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => VerifyPhoneScreen(
+                                loginOrRegister: LoginOrRegister.register,
+                                mobileNo: mobileNo,
+                              ),
+                            ),
+                          );
+                        } else {
+                          print("Registration failed");
+                        }
                       },
                       child: const Text("Send OTP"),
                       style: ElevatedButton.styleFrom(

@@ -1,16 +1,50 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:opd_app/constants.dart';
+import 'package:opd_app/screens/home_screen.dart';
+import 'package:opd_app/screens/patient_details.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class VerifyPhoneScreen extends StatefulWidget {
-  const VerifyPhoneScreen({Key? key}) : super(key: key);
+  final String mobileNo;
+
+  final LoginOrRegister loginOrRegister;
+
+  const VerifyPhoneScreen(
+      {Key? key,
+      required LoginOrRegister this.loginOrRegister,
+      required String this.mobileNo})
+      : super(key: key);
 
   @override
   State<VerifyPhoneScreen> createState() => _VerifyPhoneScreenState();
 }
 
 class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
+  Future<bool> verifyOTP(String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$url/verify_otp"),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({"mobile": "${widget.mobileNo}", "otp": "$otp"}),
+      );
+      final jsonData = jsonDecode(response.body);
+
+      print(response.statusCode);
+
+      return response.statusCode == 202;
+    } catch (err) {
+      print("Error occurred: $err");
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final otpController = TextEditingController();
+
     var appBar = AppBar(
       centerTitle: true,
       toolbarHeight: 100,
@@ -43,13 +77,13 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
               sizedBoxH20W0,
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     "OTP sent to ",
                     style: black14w400,
                   ),
                   Text(
-                    "+6355689874",
+                    "+91${widget.mobileNo}",
                     style: black14w500,
                   )
                 ],
@@ -59,6 +93,7 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
                 height: 40,
                 child: TextFormField(
                   maxLines: 1,
+                  controller: otpController,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.only(left: 15),
                     hintText: "Enter OTP",
@@ -79,7 +114,42 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () async {
+                        final otp = otpController.text;
+                        print("OTP: $otp");
+                        final bool status = await verifyOTP(otp);
+                        if (status) {
+                          print("OTP verified successfully.");
+                          // print("Login/Register: ${widget.loginOrRegister}");
+                          // print("navigating ot dashboard");
+
+                          if (widget.loginOrRegister == LoginOrRegister.login) {
+                            print("navigating ot dashboard");
+                            // Obtain shared preferences.
+                            final prefs = await SharedPreferences.getInstance();
+                            prefs.setBool(prefLoggedIn, true);
+
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const PatientDashboardScreen(),
+                              ),
+                            );
+                          } else {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PatientDetailsScreen(
+                                  mobileNo: widget.mobileNo,
+                                ),
+                              ),
+                            );
+                          }
+                        } else {
+                          print("Nothing");
+                        }
+                      },
                       child: Text("Verify OTP"),
                       style: ElevatedButton.styleFrom(
                         primary: primaryColor,
